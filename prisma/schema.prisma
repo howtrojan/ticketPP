@@ -1,0 +1,331 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum SectorKind {
+  GENERAL_ADMISSION
+  SEATED
+}
+
+enum TicketStatus {
+  AVAILABLE
+  SOLD
+}
+
+enum HoldStatus {
+  ACTIVE
+  EXPIRED
+  CONVERTED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  CANCELLED
+  REFUNDED
+  EXPIRED
+}
+
+enum PaymentProvider {
+  STRIPE
+  MERCADOPAGO
+}
+
+enum PaymentStatus {
+  REQUIRES_PAYMENT_METHOD
+  REQUIRES_CONFIRMATION
+  REQUIRES_ACTION
+  PROCESSING
+  SUCCEEDED
+  CANCELED
+  FAILED
+}
+
+enum SearchDocType {
+  EVENT
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String?
+  role         UserRole  @default(USER)
+  image        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  eventsCreated Event[]            @relation("EventCreatedBy")
+  holds         HoldReservation[]
+  orders        Order[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Venue {
+  id           String   @id @default(cuid())
+  name         String
+  city         String
+  state        String?
+  country      String   @default("BR")
+  addressLine1 String?
+  addressLine2 String?
+  postalCode   String?
+  timezone     String   @default("America/Sao_Paulo")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sectors Sector[]
+  events  Event[]
+
+  @@index([city])
+}
+
+model Sector {
+  id        String     @id @default(cuid())
+  venueId   String
+  name      String
+  kind      SectorKind
+  capacity  Int
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  seats Seat[]
+
+  eventLots   TicketLot[]
+  eventTickets Ticket[]
+
+  @@unique([venueId, name])
+  @@index([venueId, sortOrder])
+}
+
+model Seat {
+  id           String   @id @default(cuid())
+  sectorId     String
+  label        String
+  row          String?
+  number       Int?
+  isAccessible Boolean  @default(false)
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sector Sector @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
+
+  @@unique([sectorId, label])
+}
+
+model Event {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  title         String
+  description   String
+  startAt       DateTime
+  endAt         DateTime?
+  status        EventStatus @default(DRAFT)
+  coverImageUrl String?
+  venueId       String
+  createdById   String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  venue      Venue       @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  createdBy  User        @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  lots       TicketLot[]
+  tickets    Ticket[]
+  orders     Order[]
+  searchDocs SearchIndexDocument[]
+
+  @@index([status, startAt])
+  @@index([venueId])
+}
+
+model TicketLot {
+  id          String   @id @default(cuid())
+  eventId     String
+  sectorId    String
+  name        String
+  priceCents  Int
+  currency    String   @default("BRL")
+  startsAt    DateTime?
+  endsAt      DateTime?
+  quantity    Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sector Sector @relation(fields: [sectorId], references: [id], onDelete: Restrict)
+  tickets Ticket[]
+
+  @@index([eventId, sectorId])
+}
+
+model Ticket {
+  id         String       @id @default(cuid())
+  eventId    String
+  sectorId   String
+  lotId      String?
+  seatId     String?
+  status     TicketStatus @default(AVAILABLE)
+  priceCents Int
+  currency   String       @default("BRL")
+  soldAt     DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sector Sector @relation(fields: [sectorId], references: [id], onDelete: Restrict)
+  lot    TicketLot? @relation(fields: [lotId], references: [id], onDelete: SetNull)
+  seat   Seat?   @relation(fields: [seatId], references: [id], onDelete: Restrict)
+
+  holds      HoldReservation[]
+  orderItem  OrderItem?
+
+  @@unique([eventId, seatId])
+  @@index([eventId, sectorId, status])
+}
+
+model HoldReservation {
+  id        String     @id @default(cuid())
+  userId    String
+  ticketId  String
+  status    HoldStatus @default(ACTIVE)
+  expiresAt DateTime
+  releasedAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, expiresAt])
+  @@index([ticketId, status])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  eventId         String
+  status          OrderStatus @default(PENDING_PAYMENT)
+  totalCents      Int
+  currency        String      @default("BRL")
+  paymentIntentId String?     @unique
+  expiresAt       DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user   User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  event  Event @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  items  OrderItem[]
+  payments Payment[]
+
+  @@index([userId, createdAt])
+  @@index([eventId, createdAt])
+  @@index([status, createdAt])
+}
+
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  ticketId      String   @unique
+  unitPriceCents Int
+  currency      String   @default("BRL")
+  seatLabel     String?
+  sectorName    String?
+  createdAt     DateTime @default(now())
+
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+}
+
+model Payment {
+  id                       String          @id @default(cuid())
+  orderId                  String
+  provider                 PaymentProvider
+  providerPaymentIntentId  String          @unique
+  status                   PaymentStatus
+  amountCents              Int
+  currency                 String          @default("BRL")
+  raw                      Json?
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+}
+
+model SearchIndexDocument {
+  id        String       @id @default(cuid())
+  type      SearchDocType
+  eventId   String
+  version   Int          @default(1)
+  indexedAt DateTime?
+  lastError String?
+  updatedAt DateTime     @updatedAt
+  createdAt DateTime     @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([type, eventId])
+  @@index([type, indexedAt])
+}
