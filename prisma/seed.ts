@@ -125,8 +125,7 @@ async function main() {
         "Uma experiência premium com som imersivo, luzes e uma curadoria de artistas que vira madrugada.",
       venueId: venue1.id,
       startAt: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 10),
-      coverImageUrl:
-        "https://images.unsplash.com/photo-1464375117522-1311dd7d0b42?auto=format&fit=crop&w=1600&q=80",
+      coverImageUrl: null,
       sectors: [
         { sectorId: spPista.id, name: "Lote 1", priceCents: 17900, quantity: 1500 },
         { sectorId: spPista.id, name: "Lote 2", priceCents: 21900, quantity: 1000 },
@@ -138,8 +137,7 @@ async function main() {
       description: "Concerto intimista com repertório contemporâneo e clássicos revisitados.",
       venueId: venue2.id,
       startAt: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 21),
-      coverImageUrl:
-        "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=1600&q=80",
+      coverImageUrl: null,
       sectors: [
         { sectorId: rjPlateia.id, name: "Plateia", priceCents: 14900, quantity: 240 },
         { sectorId: rjBalcao.id, name: "Balcão", priceCents: 9900, quantity: 120 },
@@ -239,4 +237,3 @@ main()
     await prisma.$disconnect();
     throw e;
   });
-

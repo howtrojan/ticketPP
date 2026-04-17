@@ -31,55 +31,65 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     },
   });
 
-  let heldBy: (string | null)[] = [];
+  const heldTicketIds = new Set<string>();
   try {
     const redis = getRedis();
-    const keys = ticketRows.map((t) => holdKey(t.id));
-    heldBy = keys.length ? await redis.mget(keys) : [];
+    const holdCandidates = ticketRows.filter((t) => t.status === "AVAILABLE");
+    const keys = holdCandidates.map((t) => holdKey(t.id));
+    const values = keys.length ? await redis.mget(keys) : [];
+    for (let i = 0; i < values.length; i++) {
+      if (values[i]) heldTicketIds.add(holdCandidates[i].id);
+    }
   } catch {
-    heldBy = [];
+    // Sem Redis, tratamos como sem holds ativos para manter o endpoint rápido.
   }
 
-  const tickets = ticketRows.map((t, idx) => ({
-    id: t.id,
-    sectorId: t.sectorId,
-    lotId: t.lotId,
-    seatId: t.seatId,
-    seat: t.seat,
-    status: t.status,
-    hold: heldBy[idx] ? { userId: heldBy[idx], key: holdKey(t.id) } : null,
-    priceCents: t.priceCents,
-    currency: t.currency,
-  }));
+  const seatTicketBySector = new Map<string, Map<string, (typeof ticketRows)[number]>>();
+  const sectorStats = new Map<string, { available: number; held: number; sold: number; minPrice: number | null }>();
+
+  for (const ticket of ticketRows) {
+    if (ticket.seatId) {
+      let bySeat = seatTicketBySector.get(ticket.sectorId);
+      if (!bySeat) {
+        bySeat = new Map<string, (typeof ticketRows)[number]>();
+        seatTicketBySector.set(ticket.sectorId, bySeat);
+      }
+      bySeat.set(ticket.seatId, ticket);
+    }
+
+    const stats = sectorStats.get(ticket.sectorId) ?? { available: 0, held: 0, sold: 0, minPrice: null };
+    if (ticket.status === "SOLD") {
+      stats.sold += 1;
+    } else {
+      if (heldTicketIds.has(ticket.id)) stats.held += 1;
+      else stats.available += 1;
+      stats.minPrice = stats.minPrice === null ? ticket.priceCents : Math.min(stats.minPrice, ticket.priceCents);
+    }
+    sectorStats.set(ticket.sectorId, stats);
+  }
 
   const sectors = event.venue.sectors.map((s) => {
-    const sectorTickets = tickets.filter((t) => t.sectorId === s.id);
-    const available = sectorTickets.filter((t) => t.status === "AVAILABLE" && !t.hold).length;
-    const held = sectorTickets.filter((t) => t.status === "AVAILABLE" && !!t.hold).length;
-    const sold = sectorTickets.filter((t) => t.status === "SOLD").length;
-    const minPrice = sectorTickets.length
-      ? Math.min(...sectorTickets.filter((t) => t.status !== "SOLD").map((t) => t.priceCents))
-      : null;
+    const stats = sectorStats.get(s.id) ?? { available: 0, held: 0, sold: 0, minPrice: null };
 
     return {
       id: s.id,
       name: s.name,
       kind: s.kind,
       capacity: s.capacity,
-      available,
-      held,
-      sold,
-      minPrice,
+      available: stats.available,
+      held: stats.held,
+      sold: stats.sold,
+      minPrice: stats.minPrice,
       seats:
         s.kind === "SEATED"
           ? s.seats.map((seat) => {
-              const ticket = sectorTickets.find((t) => t.seatId === seat.id) ?? null;
+              const ticket = seatTicketBySector.get(s.id)?.get(seat.id) ?? null;
               const state =
                 !ticket
                   ? "UNAVAILABLE"
                   : ticket.status === "SOLD"
                     ? "SOLD"
-                    : ticket.hold
+                    : heldTicketIds.has(ticket.id)
                       ? "HELD"
                       : "AVAILABLE";
               return {

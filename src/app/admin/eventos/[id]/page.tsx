@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getSession, requireAdmin } from "@/lib/auth";
+import { getSession, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -16,12 +16,19 @@ const lotSchema = z.object({
   quantity: z.coerce.number().int().min(1).max(50000),
 });
 
-export default async function AdminEventoPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminEventoPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/auth/login?callbackUrl=/admin");
-  await requireAdmin();
+  const { userId: currentUserId, role: currentUserRole } = await requireUser();
 
   const { id } = await params;
+  const { error } = await searchParams;
   const event = await prisma.event.findUnique({
     where: { id },
     include: {
@@ -30,6 +37,7 @@ export default async function AdminEventoPage({ params }: { params: Promise<{ id
     },
   });
   if (!event) redirect("/admin");
+  if (currentUserRole !== "ADMIN" && event.createdById !== currentUserId) redirect("/eventos");
   const eventId = event.id;
   const venueId = event.venueId;
 
@@ -42,7 +50,11 @@ export default async function AdminEventoPage({ params }: { params: Promise<{ id
 
   async function createLotAndTickets(formData: FormData) {
     "use server";
-    await requireAdmin();
+    const { userId, role } = await requireUser();
+    if (role !== "ADMIN") {
+      const row = await prisma.event.findUnique({ where: { id: eventId }, select: { createdById: true } });
+      if (!row || row.createdById !== userId) throw new Error("FORBIDDEN");
+    }
 
     const raw = {
       sectorId: String(formData.get("sectorId") ?? ""),
@@ -100,9 +112,30 @@ export default async function AdminEventoPage({ params }: { params: Promise<{ id
 
   async function publishEvent() {
     "use server";
-    await requireAdmin();
+    const { userId, role } = await requireUser();
+    if (role !== "ADMIN") {
+      const row = await prisma.event.findUnique({ where: { id: eventId }, select: { createdById: true } });
+      if (!row || row.createdById !== userId) throw new Error("FORBIDDEN");
+    }
     await prisma.event.update({ where: { id: eventId }, data: { status: "PUBLISHED" } });
     redirect(`/admin/eventos/${eventId}`);
+  }
+
+  async function deleteEvent() {
+    "use server";
+    const { userId, role } = await requireUser();
+    if (role !== "ADMIN") {
+      const row = await prisma.event.findUnique({ where: { id: eventId }, select: { createdById: true } });
+      if (!row || row.createdById !== userId) throw new Error("FORBIDDEN");
+    }
+
+    const ordersCount = await prisma.order.count({ where: { eventId } });
+    if (ordersCount > 0) {
+      redirect(`/admin/eventos/${eventId}?error=HAS_ORDERS`);
+    }
+
+    await prisma.event.delete({ where: { id: eventId } });
+    redirect("/admin");
   }
 
   return (
@@ -113,6 +146,11 @@ export default async function AdminEventoPage({ params }: { params: Promise<{ id
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{event.title}</h1>
             <Badge variant={event.status === "PUBLISHED" ? "default" : "secondary"}>{event.status}</Badge>
           </div>
+          {error === "HAS_ORDERS" ? (
+            <p className="mt-2 text-sm font-medium text-destructive">
+              Este evento já possui pedidos e não pode ser excluído.
+            </p>
+          ) : null}
           <p className="mt-1 text-sm text-muted-foreground">
             {formatDateTime(event.startAt)} • {event.venue.name} • {event.venue.city}
           </p>
@@ -128,6 +166,11 @@ export default async function AdminEventoPage({ params }: { params: Promise<{ id
           <Button asChild variant="secondary" className="rounded-2xl">
             <a href="/admin">Voltar</a>
           </Button>
+          <form action={deleteEvent}>
+            <Button type="submit" variant="destructive" className="rounded-2xl">
+              Excluir evento
+            </Button>
+          </form>
         </div>
       </div>
 

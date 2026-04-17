@@ -35,21 +35,21 @@ export default async function EventosPage({
     <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Eventos</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Explore o catálogo e garanta seus ingressos antes de esgotar.
+          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Eventos</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Descubra experiências ao vivo com visual premium e compra sem fricção.
           </p>
         </div>
         <EventSearchBar defaultValue={q} />
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {q ? <Badge variant="secondary">Busca: {q}</Badge> : null}
-        {city ? <Badge variant="secondary">Cidade: {city}</Badge> : null}
-        <Badge variant="outline">{items.length} resultados</Badge>
+        {q ? <Badge variant="secondary" className="rounded-full px-3 py-1">Busca: {q}</Badge> : null}
+        {city ? <Badge variant="secondary" className="rounded-full px-3 py-1">Cidade: {city}</Badge> : null}
+        <Badge variant="outline" className="rounded-full px-3 py-1">{items.length} resultados</Badge>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((e) => (
           <EventCard
             key={e.id}
@@ -66,4 +66,3 @@ export default async function EventosPage({
     </div>
   );
 }
-

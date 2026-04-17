@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -19,10 +19,8 @@ const schema = z.object({
   password: z.string().min(1),
 });
 
-export function LoginForm() {
+export function LoginForm({ callbackUrl = "/" }: { callbackUrl?: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -105,4 +103,3 @@ export function LoginForm() {
     </Card>
   );
 }
-

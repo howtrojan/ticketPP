@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
@@ -130,7 +131,7 @@ export async function POST(req: Request) {
         status: "REQUIRES_PAYMENT_METHOD",
         amountCents: order.totalCents,
         currency: order.currency,
-        raw: session as unknown as Record<string, unknown>,
+        raw: session as unknown as Prisma.JsonObject,
       },
     });
 

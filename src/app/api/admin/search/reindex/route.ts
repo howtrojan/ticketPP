@@ -43,7 +43,7 @@ export async function POST() {
     orderBy: { startAt: "asc" },
   });
 
-  const body: unknown[] = [];
+  const body: NonNullable<Parameters<typeof os.bulk>[0]["body"]> = [];
   for (const e of events) {
     body.push({ index: { _index: EVENTS_INDEX, _id: e.id } });
     body.push({

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { Prisma } from "@prisma/client";
 import { env } from "@/lib/env";
 import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
           where: { orderId, provider: "STRIPE", providerPaymentIntentId: session.id },
           data: {
             status: "SUCCEEDED",
-            raw: session as unknown as Record<string, unknown>,
+            raw: session as unknown as Prisma.JsonObject,
           },
         });
 

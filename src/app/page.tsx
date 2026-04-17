@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { EventCard } from "@/components/event-card";
@@ -14,34 +14,24 @@ export default async function Home() {
   });
 
   return (
-    <div className="relative">
-      <div className="pointer-events-none absolute inset-x-0 top-[-220px] h-[420px] bg-gradient-to-b from-foreground/10 via-foreground/5 to-transparent blur-2xl" />
+    <div className="relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-x-0 top-[-240px] h-[520px] bg-radial from-primary/30 via-primary/10 to-transparent blur-3xl" />
       <section className="mx-auto max-w-6xl px-4 pt-10 md:pt-14">
-        <div className="grid gap-8 rounded-3xl border bg-card/40 p-8 shadow-sm backdrop-blur md:grid-cols-12 md:items-end md:gap-10 md:p-10">
-          <div className="md:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
-              <Sparkles className="h-3.5 w-3.5" />
-              MVP pronto para ticketing real
-            </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">
-              Venda ingressos com uma experiência premium, rápida e segura.
-            </h1>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground md:text-base">
-              Busca instantânea, reserva por 7 minutos, checkout com Stripe e controle de concorrência
-              para evitar overselling.
-            </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button asChild size="lg" className="rounded-2xl">
+        <div className="grid gap-8 rounded-[2rem] border border-border/70 bg-linear-to-br from-card/95 via-card/86 to-card/72 p-8 shadow-[0_36px_70px_-46px_rgba(19,13,35,0.85)] backdrop-blur md:grid-cols-12 md:items-end md:gap-10 md:p-12">
+          <div className="md:col-span-7">           
+            
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <Button asChild size="lg">
                 <Link href="/eventos">
                   Ver eventos <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="secondary" className="rounded-2xl">
+              <Button asChild size="lg" variant="secondary">
                 <Link href="/admin">Criar evento</Link>
               </Button>
             </div>
           </div>
-          <div className="md:col-span-5">
+          <div className="space-y-4 md:col-span-5">
             <EventSearchBar />
           </div>
         </div>
@@ -50,10 +40,10 @@ export default async function Home() {
       <section className="mx-auto max-w-6xl px-4 pb-14 pt-10">
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight md:text-xl">Em destaque</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Eventos com alta procura e curadoria.</p>
+            <h2 className="text-lg font-semibold tracking-tight md:text-xl">Eventos em destaque</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Seleção com maior procura e forte potencial de venda.</p>
           </div>
-          <Button asChild variant="ghost" className="rounded-2xl">
+          <Button asChild variant="ghost">
             <Link href="/eventos">Ver catálogo</Link>
           </Button>
         </div>
@@ -71,7 +61,7 @@ export default async function Home() {
               }}
             />
           ))}
-        </div>
+        </div>        
       </section>
     </div>
   );
