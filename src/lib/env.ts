@@ -25,4 +25,3 @@ export const env = schema.parse({
   OPENSEARCH_USERNAME: process.env.OPENSEARCH_USERNAME,
   OPENSEARCH_PASSWORD: process.env.OPENSEARCH_PASSWORD,
 });
-
