@@ -28,7 +28,7 @@ const schema = z.object({
 export default async function NovoEventoPage() {
   const session = await getSession();
   if (!session?.user?.id) redirect("/auth/login?callbackUrl=/admin/eventos/novo");
-  await requireAdmin();
+  if (session.user.role !== "ADMIN") redirect("/eventos");
 
   const venues = await prisma.venue.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
 
@@ -128,4 +128,3 @@ export default async function NovoEventoPage() {
     </div>
   );
 }
-

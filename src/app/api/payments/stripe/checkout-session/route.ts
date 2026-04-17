@@ -60,6 +60,45 @@ export async function POST(req: Request) {
 
   try {
     const order = await prisma.$transaction(async (tx) => {
+      const now = new Date();
+
+      const existing = await tx.orderItem.findMany({
+        where: { ticketId: { in: uniqueTicketIds } },
+        select: {
+          order: {
+            select: {
+              id: true,
+              status: true,
+              expiresAt: true,
+            },
+          },
+        },
+      });
+
+      const ordersById = new Map<string, { id: string; status: string; expiresAt: Date | null }>();
+      for (const row of existing) {
+        if (!row.order) continue;
+        ordersById.set(row.order.id, row.order);
+      }
+
+      for (const o of ordersById.values()) {
+        if (o.status === "PAID") {
+          const err = new Error("TICKET_UNAVAILABLE");
+          (err as unknown as { code?: string }).code = "TICKET_UNAVAILABLE";
+          throw err;
+        }
+
+        const active = o.status === "PENDING_PAYMENT" && !!o.expiresAt && o.expiresAt > now;
+        if (active) {
+          const err = new Error("TICKET_IN_ORDER");
+          (err as unknown as { code?: string; orderId?: string }).code = "TICKET_IN_ORDER";
+          (err as unknown as { code?: string; orderId?: string }).orderId = o.id;
+          throw err;
+        }
+
+        await tx.order.delete({ where: { id: o.id } });
+      }
+
       const created = await tx.order.create({
         data: {
           userId,
@@ -137,7 +176,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, url: session.url, orderId: order.id });
   } catch (e: unknown) {
-    const code = (e as { code?: string } | null)?.code;
+    const code = (e as { code?: string; orderId?: string } | null)?.code;
+    if (code === "TICKET_UNAVAILABLE") return NextResponse.json({ error: "TICKET_UNAVAILABLE" }, { status: 409 });
+    if (code === "TICKET_IN_ORDER")
+      return NextResponse.json({ error: "TICKET_IN_ORDER", orderId: (e as { orderId?: string }).orderId ?? null }, { status: 409 });
     if (code === "P2002") return NextResponse.json({ error: "TICKET_IN_ORDER" }, { status: 409 });
     return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
   }

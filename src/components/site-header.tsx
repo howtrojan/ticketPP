@@ -1,12 +1,14 @@
+"use client";
+
 import Link from "next/link";
 import { Ticket } from "lucide-react";
-import { getSession } from "@/lib/auth";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { UserMenu } from "@/components/user-menu";
 
-export async function SiteHeader() {
-  const session = await getSession();
+export function SiteHeader() {
+  const { data: session } = useSession();
   const user = session?.user;
 
   return (

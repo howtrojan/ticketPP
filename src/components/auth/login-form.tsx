@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -20,8 +19,6 @@ const schema = z.object({
 });
 
 export function LoginForm({ callbackUrl = "/" }: { callbackUrl?: string }) {
-  const router = useRouter();
-
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
@@ -53,7 +50,7 @@ export function LoginForm({ callbackUrl = "/" }: { callbackUrl?: string }) {
                   toast.error("Email ou senha inválidos.");
                   return;
                 }
-                router.push(res.url ?? callbackUrl);
+                window.location.href = res.url ?? callbackUrl;
               } finally {
                 setLoading(false);
               }

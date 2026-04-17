@@ -21,7 +21,7 @@ export default async function AdminPage({
 }) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/auth/login?callbackUrl=/admin");
-  await requireAdmin();
+  if (session.user.role !== "ADMIN") redirect("/eventos");
   const { error } = await searchParams;
 
   const [events, venues] = await Promise.all([
